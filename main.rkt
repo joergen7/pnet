@@ -1,99 +1,206 @@
-#lang racket
+#lang racket/base
 
-(provide pnet-interface
-         start)
+;;====================================================================
+;; Requirements
+;;====================================================================
 
-(define pnet-interface
-  (interface () place-lst trsn-lst preset enabled? fire init-marking))
+(require racket/place
+         racket/contract
+         racket/match
+         racket/bool
+         racket/set
+         "lib-pnet.rkt")
 
-(define (loop marking pnet)
-  ; TODO
-  (loop marking pnet))
+;;====================================================================
+;; Provisions
+;;====================================================================
 
-(define (start pnet)
+(provide ; Type Definitions
+         Mode
+         Marking
 
-  (define marking0
-    (for/fold
-     ([marking (hash)])
-     ([place (send pnet place-lst)])
-     (hash-set marking place (send pnet init-marking place))))
-      
-  (define pnet-thread
-    (thread (lambda () (loop marking0 pnet))))
+         ; Struct Definitions
+         (struct-out PnetPlace)
+         (struct-out Delta)
+         (struct-out CallReply)
+
+         ; API Functions
+         (contract-out
+          [start-pnet-place ((module-path?) () #:rest any/c . ->* . place?)]
+          [usr-info         (place? . -> . any/c)]
+          [ls               (place? symbol? . -> . (or/c list? false?))]
+          [call             (place? any/c . -> . any/c)]))
+
+
+;;====================================================================
+;; Struct definitions
+;;====================================================================
+
+(struct InitRequest (ch pnet-mod arg-lst) #:prefab)
+(struct UsrInfoRequest (ch) #:prefab)
+(struct LsRequest (ch place) #:prefab)
+(struct CallRequest (ch msg) #:prefab)
+
+
+;;====================================================================
+;; API Functions
+;;====================================================================
+
+(define (start-pnet-place pnet-mod . arg-lst)
+
+  ; start place
+  (define p
+    (place ch
+
+           ; dynamically load Petri net struct
+           (define-values (*PNET* arg-lst)
+             (match (place-channel-get ch)
+               [(InitRequest ch-send pnet-mod arg-lst)
+                (place-channel-put ch-send 'ok)
+                (values (dynamic-require pnet-mod '*PNET*) arg-lst)]))
+
+           ; extract fields from loaded Petri net struct
+           (define place-set (Pnet-place-set *PNET*))
+           (define init-marking (Pnet-init-marking *PNET*))
+           (define init (PnetPlace-init *PNET*))
   
-  (thread-send pnet-thread 'continue))
+           ; gather user info field
+           (define usr-info (apply init arg-lst))
+  
+           ; gather initial marking
+           (define marking (make-hash))
+           (set-for-each place-set
+                        (λ (place)
+                          (let ([token-lst (init-marking place usr-info)])
+                            (hash-set! marking place token-lst))))
 
+           (define (main-loop)
 
-(define cvm%
-  (class* object% (pnet-interface)
+             (match (place-channel-get ch)
+               ['continue             (handle-continue ch
+                                                       marking
+                                                       *PNET*
+                                                       usr-info)]
+               [(UsrInfoRequest ch1)  (handle-usr-info ch1 usr-info)]
+               [(LsRequest ch1 place) (handle-ls ch1 place marking)]
+               [(CallRequest ch1 msg) (handle-call ch
+                                                   ch1
+                                                   msg
+                                                   marking
+                                                   *PNET*
+                                                   usr-info)])
 
-    (define/public (place-lst)
-       '(coin-slot cash-box signal storage compartment))
+             (main-loop))
+
+           (main-loop)))
+
+  ; send initial message to Petri net place
+  (define-values (ch-listen ch-send) (place-channel))
+  (place-channel-put p (InitRequest ch-send pnet-mod arg-lst))
+  (place-channel-get ch-listen)
+
+  ; send continue message
+  (place-channel-put p 'continue)
+
+  ; return place
+  p)
     
-    (define/public (trsn-lst)
-       '(a b))
-
-    (define/public (preset trsn)
-      (match trsn
-        ['a '(coin-slot)]
-        ['b '(signal storage)]))
-
-    (define/public (enabled? trsn marking)
-      #t)
     
-    (define/public (fire trsn mode)
-      (match trsn
-        ['a (list 'produce (hash 'cash-box '(coin) 'signal '(sig)))]
-        ['b (list 'produce (hash 'compartment '(cookie-box)))]))
-    
-    (define/public (init-marking trsn)
-      (match trsn
-        ['storage '(cookie-box cookie-box cookie-box)]
-        [_        '()]))
 
-    (super-new)
+(define (usr-info p)
 
-  ))
+  (define-values (ch-listen ch-send)
+    (place-channel))
+
+  (place-channel-put p (UsrInfoRequest ch-send))
+  (place-channel-get ch-listen))
 
 
+(define (ls p place)
+
+  (define-values (ch-listen ch-send)
+    (place-channel))
+
+  (place-channel-put p (LsRequest ch-send place))
+  (place-channel-get ch-listen))
+
+
+(define (call p msg)
+
+  (define-values (ch-listen ch-send)
+    (place-channel))
+
+  (place-channel-put p (CallRequest ch-send msg))
+  (place-channel-get ch-listen))
 
 
 
+;;====================================================================
+;; Internal Functions
+;;====================================================================
+
+(define/contract (handle-ls ch1 place marking)
+  (place-channel? symbol? hash? . -> . void?)
+
+  (place-channel-put ch1 (hash-ref marking place #f)))
+
+(define/contract (handle-usr-info ch1 usr-info)
+  (place-channel? any/c . -> . void?)
+
+  (place-channel-put ch1 usr-info))
+
+(define/contract (handle-continue ch marking pn usr-info)
+  (place-channel? hash? PnetPlace? any/c . -> . void?)
+
+  (define delta
+    (progress marking pn usr-info))
+
+  (if delta
+      (begin
+        (marking-apply-delta delta)
+        (place-channel-put ch 'continue))
+      (void)))
+
+(define/contract (handle-call ch ch1 msg marking pn usr-info)
+  (place-channel? place-channel? any/c hash? PnetPlace? any/c . -> . void?)
+
+  (define call-handler
+    (PnetPlace-handle-call pn))
+
+  (define call-reply
+    (call-handler msg marking usr-info))
+
+  (define delta
+    (CallReply-delta call-reply))
+
+  (define reply-msg
+    (CallReply-msg call-reply))
+
+  (if delta
+      (begin
+        (marking-apply-delta marking delta)
+        (place-channel-put ch 'continue))
+      (void))
+
+  (place-channel-put ch1 reply-msg))
+  
+
+
+;;====================================================================
+;; Unit Tests
+;;====================================================================
 
 (module+ test
-  (require rackunit))
 
-;; Notice
-;; To install (from within the package directory):
-;;   $ raco pkg install
-;; To install (once uploaded to pkgs.racket-lang.org):
-;;   $ raco pkg install <<name>>
-;; To uninstall:
-;;   $ raco pkg remove <<name>>
-;; To view documentation:
-;;   $ raco docs <<name>>
-;;
-;; For your convenience, we have included a LICENSE.txt file, which links to
-;; the GNU Lesser General Public License.
-;; If you would prefer to use a different license, replace LICENSE.txt with the
-;; desired license.
-;;
-;; Some users like to add a `private/` directory, place auxiliary files there,
-;; and require them in `main.rkt`.
-;;
-;; See the current version of the racket style guide here:
-;; http://docs.racket-lang.org/style/index.html
-
-;; Code here
-
-(module+ test
+  (require rackunit)
+  
   ;; Tests to be run with raco test
   )
 
-(module+ main
-  ;; Main entry point, executed when run with the `racket` executable or DrRacket.
-  )
+;;====================================================================
+;; Main Sub-Module
+;;====================================================================
 
-
+(module+ main)
 
 

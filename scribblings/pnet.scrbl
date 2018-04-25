@@ -3,8 +3,8 @@
                     racket/base]]
 
 @title{pnet}
-@author{joergen7}
+@author{jorgen}
 
 @defmodule[pnet]
 
-Petri net library based on Racket threads.
+Package Description Here
