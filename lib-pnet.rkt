@@ -52,7 +52,7 @@
 ;;====================================================================
 
 (struct Delta ([consume : Mode]
-               [produce : Mode]))
+               [produce : Mode]) #:transparent)
 
 (struct Pnet ([place-set    : (Setof Symbol)]
               [trsn-set     : (Setof Symbol)]
@@ -217,6 +217,7 @@
 (module+ test
 
   (require typed/rackunit)
+  (require racket/match)
 
   (let ([marking : Marking (make-hash '((x . (1 2))))])
     (marking-add marking (hash 'x '(1)))
@@ -229,5 +230,38 @@
   (let ([marking : Marking (make-hash '((x . (1 2 1))))])
     (marking-remove marking (hash 'x '(1)))
     (check-equal? (hash-ref marking 'x) '(2 1) "One element should be removed"))
+
+  (let ([marking  : Marking (make-hash '([coin-slot . '(coin)]
+                                         [cash-box  . '()]
+                                         [signal    . '()]
+                                         [storage   . '(cookie-box
+                                                        cookie-box
+                                                        cookie-box)]
+                                         [compartment . '()]))]
+        [pn       : Pnet (Pnet (set 'coin-slot
+                                    'cash-box
+                                    'signal
+                                    'storage
+                                    'compartment)
+                               (set 'a 'b)
+                               (hash 'a '(coin-slot)
+                                     'b '(signal storage))
+                               (λ (place usr-info)
+                                 (match place
+                                   ['storage '(cookie-box
+                                               cookie-box
+                                               cookie-box)]
+                                   [_        '()]))
+                               (λ (trsn mode usr-info) #t)
+                               (λ (trsn mode usr-info)
+                                 (match trsn
+                                   ['a (hash 'signal '(sig))]
+                                   ['b (hash 'compartment '(cookie-box))])))]
+        [usr-info : Any #f])
+
+    (check-equal? (progress marking pn usr-info)
+                  (Delta (hash 'coin-slot '(coin))
+                         (hash 'cash-box '(coin) 'signal '(sig)))))
+        
 
   )
