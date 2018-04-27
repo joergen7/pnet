@@ -1,11 +1,11 @@
 # pnet
-###### Petri net library based on Racket threads.
+###### Petri net library based on Racket places.
 
 [![Build Status](https://travis-ci.org/joergen7/pnet.svg?branch=master)](https://travis-ci.org/joergen7/pnet)
 
 ## System Requirements
 
-- [Racket](http://racket-lang.org/) 6.0 or higher
+- [Racket](http://racket-lang.org/) 6.10 or higher
 
 ## Resources
 
