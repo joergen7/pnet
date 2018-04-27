@@ -33,7 +33,7 @@
 (: fire (Symbol Mode Any -> Mode))
 (define (fire trsn mode usr-info)
   (match trsn
-    ['a (hash 'signal '(sig))]
+    ['a (hash 'signal '(sig) 'cash-box '(coin))]
     ['b (hash 'compartment '(cookie-box))]))
 
 (: init (Any * -> Any))
@@ -43,13 +43,14 @@
 (: handle-call (Any Marking Any -> CallReply))
 (define (handle-call msg marking usr-info)
   (match msg
-    ['insert-coin       (CallReply 'ok (Delta (hash)
+    ['insert-coin       (CallReply (void) (Delta (hash)
                                               (hash 'coin-slot '(coin))))]
     ['remove-cookie-box (if (null? (hash-ref marking 'compartment))
-                            (CallReply #f #f)
-                            (CallReply 'cookie-box
+                            (CallReply '() #f)
+                            (CallReply '(cookie-box)
                                        (Delta (hash 'compartment '(cookie-box))
-                                              (hash))))]))
+                                              (hash))))]
+    [_ (CallReply #f #f)]))
 
 
 (define *PNET* : PnetPlace

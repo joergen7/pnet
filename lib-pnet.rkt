@@ -124,7 +124,7 @@
     (for/fold ([acc : (HashTable Symbol Positive-Integer) (hash)])
               ([place preset])
       
-      (define n : Nonnegative-Integer
+      (define n : Natural
         (hash-ref acc place (λ () 0)))
       
       (hash-set acc place (add1 n))))
@@ -132,7 +132,7 @@
   ; enumerate drawing combinations for each preset place individually
   (define cmb-hash : (HashTable Symbol (Listof (Listof Any)))
     (for/fold ([acc : (HashTable Symbol (Listof (Listof Any))) (hash)])
-              ([place preset])
+              ([place (hash-keys count-hash)])
 
       (define n : Positive-Integer
         (hash-ref count-hash place))
@@ -231,21 +231,23 @@
     (marking-remove marking (hash 'x '(1)))
     (check-equal? (hash-ref marking 'x) '(2 1) "One element should be removed"))
 
-  (let ([marking  : Marking (make-hash '([coin-slot . '(coin)]
-                                         [cash-box  . '()]
-                                         [signal    . '()]
-                                         [storage   . '(cookie-box
+  (let* ([marking  : Marking (make-hash '([coin-slot . (coin)]
+                                         [cash-box  . ()]
+                                         [signal    . ()]
+                                         [storage   . (cookie-box
                                                         cookie-box
                                                         cookie-box)]
-                                         [compartment . '()]))]
-        [pn       : Pnet (Pnet (set 'coin-slot
+                                         [compartment . ()]))]
+         [preset-hash : (HashTable Symbol (Listof Symbol))
+          (hash 'a '(coin-slot)
+                'b '(signal storage))]
+         [pn       : Pnet (Pnet (set 'coin-slot
                                     'cash-box
                                     'signal
                                     'storage
                                     'compartment)
                                (set 'a 'b)
-                               (hash 'a '(coin-slot)
-                                     'b '(signal storage))
+                               preset-hash
                                (λ (place usr-info)
                                  (match place
                                    ['storage '(cookie-box
@@ -255,9 +257,12 @@
                                (λ (trsn mode usr-info) #t)
                                (λ (trsn mode usr-info)
                                  (match trsn
-                                   ['a (hash 'signal '(sig))]
+                                   ['a (hash 'signal '(sig) 'cash-box '(coin))]
                                    ['b (hash 'compartment '(cookie-box))])))]
         [usr-info : Any #f])
+
+    (check-equal? (marking-firing-modes marking (hash-ref preset-hash 'a))
+                  (list (hash 'coin-slot '(coin))))
 
     (check-equal? (progress marking pn usr-info)
                   (Delta (hash 'coin-slot '(coin))

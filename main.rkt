@@ -74,22 +74,35 @@
                           (let ([token-lst (init-marking place usr-info)])
                             (hash-set! marking place token-lst))))
 
+           ; define progress-loop
+           (define (progress-loop)
+             
+             (define delta
+               (progress marking *PNET* usr-info))
+
+             (if delta
+                 (begin
+                   (marking-apply-delta marking delta)
+                   (progress-loop))
+                 (void)))
+
+           ; define main loop
            (define (main-loop)
 
+             (progress-loop)
+
+             ; process messages from outside
              (match (place-channel-get ch)
-               ['continue             (handle-continue ch
-                                                       marking
-                                                       *PNET*
-                                                       usr-info)]
                [(UsrInfoRequest ch1)  (handle-usr-info ch1 usr-info)]
                [(LsRequest ch1 place) (handle-ls ch1 place marking)]
-               [(CallRequest ch1 msg) (handle-call ch
-                                                   ch1
+               [(CallRequest ch1 msg) (handle-call ch1
                                                    msg
                                                    marking
                                                    *PNET*
                                                    usr-info)])
 
+
+             ; recursive call
              (main-loop))
 
            (main-loop)))
@@ -98,9 +111,6 @@
   (define-values (ch-listen ch-send) (place-channel))
   (place-channel-put p (InitRequest ch-send pnet-mod arg-lst))
   (place-channel-get ch-listen)
-
-  ; send continue message
-  (place-channel-put p 'continue)
 
   ; return place
   p)
@@ -144,25 +154,15 @@
 
   (place-channel-put ch1 (hash-ref marking place #f)))
 
+
 (define/contract (handle-usr-info ch1 usr-info)
   (place-channel? any/c . -> . void?)
 
   (place-channel-put ch1 usr-info))
 
-(define/contract (handle-continue ch marking pn usr-info)
-  (place-channel? hash? PnetPlace? any/c . -> . void?)
 
-  (define delta
-    (progress marking pn usr-info))
-
-  (if delta
-      (begin
-        (marking-apply-delta delta)
-        (place-channel-put ch 'continue))
-      (void)))
-
-(define/contract (handle-call ch ch1 msg marking pn usr-info)
-  (place-channel? place-channel? any/c hash? PnetPlace? any/c . -> . void?)
+(define/contract (handle-call ch1 msg marking pn usr-info)
+  (place-channel? any/c hash? PnetPlace? any/c . -> . void?)
 
   (define call-handler
     (PnetPlace-handle-call pn))
@@ -177,13 +177,16 @@
     (CallReply-msg call-reply))
 
   (if delta
-      (begin
-        (marking-apply-delta marking delta)
-        (place-channel-put ch 'continue))
+      (marking-apply-delta marking delta)
       (void))
 
   (place-channel-put ch1 reply-msg))
   
+
+
+
+
+
 
 
 ;;====================================================================
