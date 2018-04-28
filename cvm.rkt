@@ -71,6 +71,14 @@
                                               (hash))))]
     [_ (CallReply #f #f)]))
 
+(: handle-cast (Any Marking Any -> (U Delta False)))
+(define (handle-cast msg marking usr-info)
+  #f)
+
+(: trigger (Symbol Any Marking Any -> Boolean))
+(define (trigger trsn token marking usr-info)
+  #t)
+
 
 (define *PNET* : PnetPlace
   (PnetPlace place-set
@@ -80,4 +88,6 @@
              enabled?
              fire
              init
-             handle-call))
+             handle-call
+             handle-cast
+             trigger))

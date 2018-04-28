@@ -48,7 +48,8 @@
           [start-pnet-place ((module-path?) () #:rest any/c . ->* . place?)]
           [usr-info         (place? . -> . any/c)]
           [ls               (place? symbol? . -> . (or/c list? false?))]
-          [call             (place? any/c . -> . any/c)]))
+          [call             (place? any/c . -> . any/c)]
+          [cast             (place? any/c . -> . void?)]))
 
 
 ;;====================================================================
@@ -59,6 +60,7 @@
 (struct UsrInfoRequest (ch) #:prefab)
 (struct LsRequest (ch place) #:prefab)
 (struct CallRequest (ch msg) #:prefab)
+(struct CastRequest (msg) #:prefab)
 
 
 ;;====================================================================
@@ -82,6 +84,7 @@
            (define place-set (Pnet-place-set *PNET*))
            (define init-marking (Pnet-init-marking *PNET*))
            (define init (PnetPlace-init *PNET*))
+           (define trigger (PnetPlace-trigger *PNET*))
   
            ; gather user info field
            (define usr-info (apply init arg-lst))
@@ -100,8 +103,8 @@
                (progress marking *PNET* usr-info))
 
              (if delta
-                 (begin
-                   (marking-apply-delta marking delta)
+                 (let ([delta1 (delta-apply-trigger delta trigger marking usr-info)])
+                   (marking-apply-delta marking delta1)
                    (progress-loop))
                  (void)))
 
@@ -116,6 +119,10 @@
                [(LsRequest ch1 place) (handle-ls ch1 place marking)]
                [(CallRequest ch1 msg) (handle-call ch1
                                                    msg
+                                                   marking
+                                                   *PNET*
+                                                   usr-info)]
+               [(CastRequest msg)     (handle-cast msg
                                                    marking
                                                    *PNET*
                                                    usr-info)])
@@ -162,6 +169,10 @@
   (place-channel-put p (CallRequest ch-send msg))
   (place-channel-get ch-listen))
 
+(define (cast p msg)
+
+  (place-channel-put p (CastRequest msg)))
+
 
 
 ;;====================================================================
@@ -183,6 +194,9 @@
 (define/contract (handle-call ch1 msg marking pn usr-info)
   (place-channel? any/c hash? PnetPlace? any/c . -> . void?)
 
+  (define trigger
+    (PnetPlace-trigger pn))
+
   (define call-handler
     (PnetPlace-handle-call pn))
 
@@ -196,12 +210,28 @@
     (CallReply-msg call-reply))
 
   (if delta
-      (marking-apply-delta marking delta)
+      (let ([delta1 (delta-apply-trigger delta trigger marking usr-info)])
+        (marking-apply-delta marking delta1))
       (void))
 
   (place-channel-put ch1 reply-msg))
   
+(define/contract (handle-cast msg marking pn usr-info)
+  (any/c hash? PnetPlace? any/c . -> . void?)
 
+  (define trigger
+    (PnetPlace-trigger pn))
+
+  (define cast-handler
+    (PnetPlace-handle-cast pn))
+
+  (define delta
+    (cast-handler msg marking usr-info))
+
+  (if delta
+      (let ([delta1 (delta-apply-trigger delta trigger marking usr-info)])
+        (marking-apply-delta marking delta1))
+      (void)))
 
 
 

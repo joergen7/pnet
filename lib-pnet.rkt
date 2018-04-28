@@ -41,6 +41,9 @@
          (struct-out CallReply)
          
          ;; API Functions
+
+         ; Operations on Deltas
+         delta-apply-trigger
          
          ; Operations on Markings
          marking-apply-delta
@@ -81,15 +84,46 @@
               [fire         : (Symbol Mode Any -> Firing)]))
 
 (struct PnetPlace Pnet ([init        : (Any * -> Any)]
-                        [handle-call : (Any Marking Any -> CallReply)]))
+                        [handle-call : (Any Marking Any -> CallReply)]
+                        [handle-cast : (Any Marking Any -> (U Delta False))]
+                        [trigger     : (Symbol Any Marking Any -> Boolean)]))
 
 (struct CallReply ([msg   : Any]
-                   [delta : (U Delta #f)]))
+                   [delta : (U Delta False)]))
 
 
 ;;====================================================================
 ;; API Functions
 ;;====================================================================
+
+;; Operations on Deltas
+
+(: delta-apply-trigger
+   (Delta (Symbol Any Marking Any -> Boolean) Marking Any -> Delta))
+(define (delta-apply-trigger delta trigger marking usr-info)
+
+  (define consume : Mode
+    (Delta-consume delta))
+  
+  (define produce : Mode
+    (Delta-produce delta))
+
+  (define trsn-lst : (Listof Symbol)
+    (hash-keys produce))
+
+  (define produce1
+    (for/fold ([acc : Mode (hash)])
+              ([trsn : Symbol trsn-lst])
+    
+      (define token-lst : (Listof Any)
+        (hash-ref produce trsn))
+
+      (define token-lst1 : (Listof Any)
+        (filter (λ (token) (trigger trsn token marking usr-info)) token-lst))
+
+      (hash-set acc trsn token-lst1)))
+
+  (Delta consume produce1))
 
 ;; Operations on Markings
 
