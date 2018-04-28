@@ -1,5 +1,5 @@
 # pnet
-###### Petri net library based on Racket places.
+###### Petri net library based on Racket places
 
 [![Build Status](https://travis-ci.org/joergen7/pnet.svg?branch=master)](https://travis-ci.org/joergen7/pnet)
 
@@ -39,7 +39,65 @@ The net can be stopped by using the function `stop-pnet-place`.
 
 ## Example: Cookie Vending Machine
 
+![Cookie Vending Machine](priv/cvm.png)
 
+*Figure 1: Petri net model of a cookie vending machine. The machine stores three cookie boxes in its storage. Upon inserting a coin, it relays a signal to release one of its cookie boxes into the compartment from where it can be removed.*
+
+Consider a cookie vending machine as specified in Figure 1. The net consists of two transitions named `a` and `b` and five places named `coin-slot`, `cash-box`, `signal`, `storage`, and `compartment` of which `storage` holds three identical tokens `cookie-box`. In the following, we explain how to construct the elements of a `PnetPlace` struct using the cookie vending machine as a running example. We do so in typed Racket, so the module starts by defining the language and requiring the `pnet` package and providing the struct defined in `*PNET*`.
+
+```racket
+#lang typed/racket/base
+(require pnet)
+(provide *PNET*)
+```
+
+### place-set
+
+The first field of the `PnetPlace` structure exported by the `pnet` package is `place-set`. This is a symbol set enumerating the names of all places in the Petri net.
+
+```racket
+(define place-set : (Setof Symbol)
+  (set 'coin-slot 'cash-box 'signal 'storage 'compartment))
+```
+
+### preset-hash
+
+For each transition in the net, we need a key-value pair in the field `preset-hash` where the key is a symbol denoting the name of the transition and the value is a list of symbols referring to the names of all places appearing in the transition's preset.
+
+```racket
+(define preset-hash : (HashTable Symbol (Listof Symbol))
+  (hash 'a '(coin-slot)
+        'b '(signal storage)))
+```
+
+### init-marking
+
+The function `init-marking` takes a place name and a user-defined data item and returns a list containing the tokens constituting the initial marking of the Petri net.
+
+```racket
+(: init-marking (Symbol Any -> (Listof Any)))
+(define (init-marking place usr-info)
+  (match place
+    ['storage '(cookie-box cookie-box cookie-box)]
+    [_        '()]))
+```
+
+### Constructing the Petri net
+
+Now that we defined all fields of the Petri net struct individually, we can construct it using the function `PnetPlace`.
+
+```racket
+(define *PNET* : PnetPlace
+  (PnetPlace place-set
+             preset-hash
+             init-marking
+             enabled?
+             fire
+             init
+             handle-call
+             handle-cast
+             trigger))
+```
 
 ## System Requirements
 

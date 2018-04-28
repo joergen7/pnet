@@ -77,7 +77,6 @@
                [produce : Mode]) #:transparent)
 
 (struct Pnet ([place-set    : (Setof Symbol)]
-              [trsn-set     : (Setof Symbol)]
               [preset-hash  : (HashTable Symbol (Listof Symbol))]
               [init-marking : (Symbol Any -> (Listof Any))]
               [enabled?     : (Symbol Mode Any -> Boolean)]
@@ -230,7 +229,7 @@
 (define (progress marking pn usr-info)
 
   (define trsn-lst : (Listof Symbol)
-    (set->list (Pnet-trsn-set pn)))
+    (hash-keys (Pnet-preset-hash pn)))
 
   (define preset-hash : (HashTable Symbol (Listof Symbol))
     (Pnet-preset-hash pn))
@@ -299,7 +298,6 @@
                                     'signal
                                     'storage
                                     'compartment)
-                               (set 'a 'b)
                                preset-hash
                                (λ (place usr-info)
                                  (match place

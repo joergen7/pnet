@@ -31,9 +31,6 @@
 (define place-set : (Setof Symbol)
   (set 'coin-slot 'cash-box 'signal 'storage 'compartment))
 
-(define trsn-set : (Setof Symbol)
-  (set 'a 'b))
-
 (define preset-hash : (HashTable Symbol (Listof Symbol))
   (hash 'a '(coin-slot)
         'b '(signal storage)))
@@ -82,7 +79,6 @@
 
 (define *PNET* : PnetPlace
   (PnetPlace place-set
-             trsn-set
              preset-hash
              init-marking
              enabled?

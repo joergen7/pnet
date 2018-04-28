@@ -45,12 +45,16 @@
 
          ; API Functions
          (contract-out
-          [start-pnet-place ((module-path?) () #:rest any/c . ->* . place?)]
+          [start-pnet-place ((module-path?)
+                             ()
+                             #:rest place-message-allowed? . ->* . place?)]
           [stop-pnet-place  (place? . -> . void?)]
-          [usr-info         (place? . -> . any/c)]
-          [ls               (place? symbol? . -> . (or/c list? false?))]
-          [call             (place? any/c . -> . any/c)]
-          [cast             (place? any/c . -> . void?)]))
+          [usr-info         (place? . -> . place-message-allowed?)]
+          [ls               (place? symbol? . -> .
+                              (or/c (listof place-message-allowed?) false?))]
+          [call             (place? place-message-allowed? . -> .
+                              place-message-allowed?)]
+          [cast             (place? place-message-allowed? . -> . void?)]))
 
 
 ;;====================================================================
@@ -251,7 +255,7 @@
 
 (module+ test
 
-  (require rackunit)
+  ; (require rackunit)
   
   ;; Tests to be run with raco test
   )
