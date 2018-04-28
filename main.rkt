@@ -46,6 +46,7 @@
          ; API Functions
          (contract-out
           [start-pnet-place ((module-path?) () #:rest any/c . ->* . place?)]
+          [stop-pnet-place  (place? . -> . void?)]
           [usr-info         (place? . -> . any/c)]
           [ls               (place? symbol? . -> . (or/c list? false?))]
           [call             (place? any/c . -> . any/c)]
@@ -103,7 +104,10 @@
                (progress marking *PNET* usr-info))
 
              (if delta
-                 (let ([delta1 (delta-apply-trigger delta trigger marking usr-info)])
+                 (let ([delta1 (delta-apply-trigger delta
+                                                    trigger
+                                                    marking
+                                                    usr-info)])
                    (marking-apply-delta marking delta1)
                    (progress-loop))
                  (void)))
@@ -125,7 +129,8 @@
                [(CastRequest msg)     (handle-cast msg
                                                    marking
                                                    *PNET*
-                                                   usr-info)])
+                                                   usr-info)]
+               [_                     (void)])
 
 
              ; recursive call
@@ -136,12 +141,14 @@
   ; send initial message to Petri net place
   (define-values (ch-listen ch-send) (place-channel))
   (place-channel-put p (InitRequest ch-send pnet-mod arg-lst))
-  (place-channel-get ch-listen)
-
+  (place-channel-get ch-listen) ; we're ignoring what we get back here,
+                                ; we just have to make sure init has completed
   ; return place
   p)
     
-    
+(define (stop-pnet-place p)
+  (place-kill p))
+
 
 (define (usr-info p)
 
