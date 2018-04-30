@@ -106,7 +106,7 @@ The function `fire` takes a transition name and a mode that enables this transit
 
 ### init
 
-The function init is called at the beginning of the net instance's life cycle and constructs the user info field which is passed to many of the callback functions.
+The function `init` is called at the beginning of the net instance's life cycle and constructs the user info field which is passed to many of the callback functions.
 
 ```racket
 (: init (Any * -> Any))
@@ -129,7 +129,7 @@ From the outside, the net instance can be addressed synchronously by calling it 
                             (CallReply '(cookie-box)
                                        (Delta (hash 'compartment '(cookie-box))
                                               (hash))))]
-    [_ (CallReply 'bad-msg #f)]))
+    [_                      (CallReply 'bad-msg #f)]))
 ```
 
 ### handle-cast

@@ -83,7 +83,7 @@
               [fire         : (Symbol Mode Any -> Firing)]))
 
 (struct PnetPlace Pnet ([init        : (Any * -> Any)]
-                        [handle-call : (Any Marking Any -> (U CallReply)]
+                        [handle-call : (Any Marking Any -> CallReply)]
                         [handle-cast : (Any Marking Any -> (U Delta False))]
                         [trigger     : (Symbol Any Marking Any -> Boolean)]))
 
