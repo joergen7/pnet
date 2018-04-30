@@ -54,7 +54,7 @@
 
 (: init (Any * -> Any))
 (define (init . arg-lst)
-  'hello-world)
+  #f)
 
 (: handle-call (Any Marking Any -> CallReply))
 (define (handle-call msg marking usr-info)
@@ -66,7 +66,7 @@
                             (CallReply '(cookie-box)
                                        (Delta (hash 'compartment '(cookie-box))
                                               (hash))))]
-    [_ (CallReply #f #f)]))
+    [_ (CallReply 'bad-msg #f)]))
 
 (: handle-cast (Any Marking Any -> (U Delta False)))
 (define (handle-cast msg marking usr-info)

@@ -82,7 +82,77 @@ The function `init-marking` takes a place name and a user-defined data item and 
     [_        '()]))
 ```
 
-### Constructing the Petri net
+### enabled?
+
+The function `enabled` takes a transition name and a firing mode and determines whether the firing mode enables this transition.
+
+```racket
+(: enabled? (Symbol Mode Any -> Boolean))
+(define (enabled? trsn mode usr-info)
+  #t)
+```
+
+### fire
+
+The function `fire` takes a transition name and a mode that enables this transition and determines what tokens firing this transition produces on what places.
+
+```racket
+(: fire (Symbol Mode Any -> Mode))
+(define (fire trsn mode usr-info)
+  (match trsn
+    ['a (hash 'signal '(sig) 'cash-box '(coin))]
+    ['b (hash 'compartment '(cookie-box))]))
+```
+
+### init
+
+The function init is called at the beginning of the net instance's life cycle and constructs the user info field which is passed to many of the callback functions.
+
+```racket
+(: init (Any * -> Any))
+(define (init . arg-lst)
+  #f)
+```
+
+### handle-call
+
+From the outside, the net instance can be addressed synchronously by calling it with the function `call`. When a call is received by the net instance, it uses the callback function `handle-call` to determine the call reply.
+
+```racket
+(: handle-call (Any Marking Any -> CallReply))
+(define (handle-call msg marking usr-info)
+  (match msg
+    ['insert-coin       (CallReply (void) (Delta (hash)
+                                              (hash 'coin-slot '(coin))))]
+    ['remove-cookie-box (if (null? (hash-ref marking 'compartment))
+                            (CallReply '() #f)
+                            (CallReply '(cookie-box)
+                                       (Delta (hash 'compartment '(cookie-box))
+                                              (hash))))]
+    [_ (CallReply 'bad-msg #f)]))
+```
+
+### handle-cast
+
+The net instance can be addressed asynchronously by casting a message with the function `cast`. When a casted message is received by the net instance, it uses the callback function `handle-cast` to determine the reply.
+
+```handle-cast
+(: handle-cast (Any Marking Any -> (U Delta False)))
+(define (handle-cast msg marking usr-info)
+  #f)
+```
+
+### trigger
+
+Whenever a token appears on a place we have the possibility to associate it with a side-effect via the function `trigger`. In addition we can choose whether the token should vanish (by returning `#f`) or whether the token should actually appear (by returning `#t`).
+
+```racket
+(: trigger (Symbol Any Marking Any -> Boolean))
+(define (trigger trsn token marking usr-info)
+  #t)
+```
+
+### Constructing the Petri Net Struct
 
 Now that we defined all fields of the Petri net struct individually, we can construct it using the function `PnetPlace`.
 
