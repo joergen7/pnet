@@ -11,6 +11,14 @@ While a pnet instance acts as a Petri net on the inside, to the outside it behav
 
 ## Usage
 
+### Installation
+
+You can install the pnet package from [Racket Packages](http://pkgs.racket-lang.org/) by entering on the command line
+
+    raco pkg install pnet
+
+### Controlling Petri nets
+
 The Petri net is specified by constructing a typed struct. The struct must be populated by both data and callback functions to determine the structure of the net as well as the behavior of the net as a Racket place. Then, this struct needs to be exported by a module so that it can be dynamically loaded upon starting the Petri net instance.
 
 Suppose, we have already created such a module and stored it in the module path `"git/pnet/cvm.rkt"`. We can start it by using the function `start-pnet-place` exported by the pnet library.
