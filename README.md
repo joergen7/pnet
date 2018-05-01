@@ -63,6 +63,8 @@ Consider a cookie vending machine as specified in Figure 1. The net consists of 
 
 The first field of the `PnetPlace` structure exported by the `pnet` package is `place-set`. This is a symbol set enumerating the names of all places in the Petri net.
 
+In our example we have five places.
+
 ```racket
 (define place-set : (Setof Symbol)
   (set 'coin-slot 'cash-box 'signal 'storage 'compartment))
@@ -71,6 +73,8 @@ The first field of the `PnetPlace` structure exported by the `pnet` package is `
 ### preset-hash
 
 For each transition in the net, we need a key-value pair in the field `preset-hash` where the key is a symbol denoting the name of the transition and the value is a list of symbols referring to the names of all places appearing in the transition's preset.
+
+In our example the Petri net structure incorporates two transitions `a` and `b`. The preset of `a` comprises the `coin-slot` place and the preset of `b` comprises the places `signal` and `storage`.
 
 ```racket
 (define preset-hash : (HashTable Symbol (Listof Symbol))
@@ -81,6 +85,8 @@ For each transition in the net, we need a key-value pair in the field `preset-ha
 ### init-marking
 
 The function `init-marking` takes a place name and a user-defined data item and returns a list containing the tokens constituting the initial marking of the Petri net.
+
+Our example leaves all places empty except the storage place which is initialized with three `cookie-box` tokens.
 
 ```racket
 (: init-marking (Symbol Any -> (Listof Any)))
@@ -94,6 +100,8 @@ The function `init-marking` takes a place name and a user-defined data item and 
 
 The function `enabled` takes a transition name and a firing mode and determines whether the firing mode enables this transition.
 
+In our example all transitions are trivially enabled.
+
 ```racket
 (: enabled? (Symbol Mode Any -> Boolean))
 (define (enabled? trsn mode usr-info)
@@ -103,6 +111,10 @@ The function `enabled` takes a transition name and a firing mode and determines 
 ### fire
 
 The function `fire` takes a transition name and a mode that enables this transition and determines what tokens firing this transition produces on what places.
+
+In our example, we need to define the effects of two transitions: `a` and `b`. We already know that the transition `a` consumes exactly one token from the `coin-slot` place. It is unnecessary to do further checking on this. In general, however, the result of the firing depends on the firing mode. The transition `a` produces a `sig` token on the `signal` place and a `cookie-box` token on the `compartment` place.
+
+Similarly, inspection of the firing mode of `b` does not reveal any information beyond the fact that it consumes one token from the `signal` place and one from the `storage` place. All that is left to do is to make `b` produce a `cookie-box` token on the `compartment` place.
 
 ```racket
 (: fire (Symbol Mode Any -> Mode))
@@ -116,6 +128,8 @@ The function `fire` takes a transition name and a mode that enables this transit
 
 The function `init` is called at the beginning of the net instance's life cycle and constructs the user info field which is passed to many of the callback functions.
 
+The user info field can be any Racket data structure. However, our example, makes no use of the user info field. We return `#f` here.
+
 ```racket
 (: init (Any * -> Any))
 (define (init . arg-lst)
@@ -125,6 +139,8 @@ The function `init` is called at the beginning of the net instance's life cycle 
 ### handle-call
 
 From the outside, the net instance can be addressed synchronously by calling it with the function `call`. When a call is received by the net instance, it uses the callback function `handle-call` to determine the call reply.
+
+In our example there are two mechanisms that are not modeled by the net itself but are controlled by its environment. The first is the inserting of a coin which makes a `coin` token appear on the `coin-slot` place. The second is the removal of a `cookie-box` token from the compartment, if one is present.
 
 ```racket
 (: handle-call (Any Marking Any -> CallReply))
@@ -144,6 +160,8 @@ From the outside, the net instance can be addressed synchronously by calling it 
 
 The net instance can be addressed asynchronously by casting a message with the function `cast`. When a casted message is received by the net instance, it uses the callback function `handle-cast` to determine the reply.
 
+Since, in our example, we cover all interaction with synchronous communication, the `handle-cast` function leaves the net unchanged independent of the messsage received or the current marking of the net.
+
 ```handle-cast
 (: handle-cast (Any Marking Any -> (U Delta False)))
 (define (handle-cast msg marking usr-info)
@@ -152,7 +170,9 @@ The net instance can be addressed asynchronously by casting a message with the f
 
 ### trigger
 
-Whenever a token appears on a place we have the possibility to associate it with a side-effect via the function `trigger`. In addition we can choose whether the token should vanish (by returning `#f`) or whether the token should actually appear (by returning `#t`).
+Whenever a token appears on a place we have the possibility to associate it with a side effect via the function `trigger`. In addition we can choose whether the token should vanish (by returning `#f`) or whether the token should actually appear (by returning `#t`).
+
+In our example, we do not define any side effects and we do not wish to drop any token so the `trigger` function just returns `#t` no matter which transition has fired in which mode.
 
 ```racket
 (: trigger (Symbol Any Marking Any -> Boolean))
@@ -163,6 +183,10 @@ Whenever a token appears on a place we have the possibility to associate it with
 ### Constructing the Petri Net Struct
 
 Now that we defined all fields of the Petri net struct individually, we can construct it using the function `PnetPlace`.
+
+It is essential that a Petri net module defines and provides a variable with the name `*PNET*` and the type `PnetPlace`. There is no mechanism enforcing this provision.
+
+For the example of the cookie vending machine we bundle together the previously created elements.
 
 ```racket
 (define *PNET* : PnetPlace
