@@ -74,7 +74,7 @@
 ;;====================================================================
 
 (struct Delta ([consume : Mode]
-               [produce : Mode]))
+               [produce : Mode]) #:transparent)
 
 (struct Pnet ([place-set    : (Setof Symbol)]
               [preset-hash  : (HashTable Symbol (Listof Symbol))]
